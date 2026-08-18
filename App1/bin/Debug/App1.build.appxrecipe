@@ -1,0 +1,230 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Machine>XPS-16</Machine>
+    <WindowsUser>Luke</WindowsUser>
+    <TargetPlatformIdentifier>WindowsPhoneApp</TargetPlatformIdentifier>
+    <TargetOsVersion>6.3</TargetOsVersion>
+    <TargetOsDescription>Windows Phone 8.1</TargetOsDescription>
+    <SolutionConfiguration>Debug|AnyCPU</SolutionConfiguration>
+    <PackageArchitecture>neutral</PackageArchitecture>
+    <PackageIdentityName>905dc56d-1b2a-4801-a25a-c5d6369f9fe4</PackageIdentityName>
+    <PackageIdentityPublisher>CN=Luke</PackageIdentityPublisher>
+    <IntermediateOutputPath>C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\obj\Debug\</IntermediateOutputPath>
+    <RemoteDeploymentType></RemoteDeploymentType>
+    <PackageRegistrationPath></PackageRegistrationPath>
+    <RemoveNonLayoutFiles>true</RemoveNonLayoutFiles>
+  </PropertyGroup>
+  <ItemGroup>
+    <AppXManifest Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\AppxManifest.xml">
+      <PackagePath>AppxManifest.xml</PackagePath>
+      <ReRegisterAppIfChanged>true</ReRegisterAppIfChanged>
+    </AppXManifest>
+  </ItemGroup>
+  <ItemGroup>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\App1.exe">
+      <PackagePath>App1.exe</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\Assets\logobig.png">
+      <PackagePath>Assets\logobig.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\Assets\youtubelogosmall.png">
+      <PackagePath>Assets\youtubelogosmall.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\Assets\Logo.scale-240.png">
+      <PackagePath>Assets\Logo.scale-240.png</PackagePath>
+      <ReRegisterAppIfChanged>true</ReRegisterAppIfChanged>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\Assets\SmallLogo.scale-240.png">
+      <PackagePath>Assets\SmallLogo.scale-240.png</PackagePath>
+      <ReRegisterAppIfChanged>true</ReRegisterAppIfChanged>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\Assets\SplashScreen.scale-240.png">
+      <PackagePath>Assets\SplashScreen.scale-240.png</PackagePath>
+      <ReRegisterAppIfChanged>true</ReRegisterAppIfChanged>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\Assets\Square71x71Logo.scale-240.png">
+      <PackagePath>Assets\Square71x71Logo.scale-240.png</PackagePath>
+      <ReRegisterAppIfChanged>true</ReRegisterAppIfChanged>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\Assets\StoreLogo.scale-240.png">
+      <PackagePath>Assets\StoreLogo.scale-240.png</PackagePath>
+      <ReRegisterAppIfChanged>true</ReRegisterAppIfChanged>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\Assets\WideLogo.scale-240.png">
+      <PackagePath>Assets\WideLogo.scale-240.png</PackagePath>
+      <ReRegisterAppIfChanged>true</ReRegisterAppIfChanged>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\closedcaptionsfilled.png">
+      <PackagePath>youtubeicons\closedcaptionsfilled.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\closedcaptionshollow.png">
+      <PackagePath>youtubeicons\closedcaptionshollow.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\commentsfilled.png">
+      <PackagePath>youtubeicons\commentsfilled.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\commentshollow.png">
+      <PackagePath>youtubeicons\commentshollow.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\dislikefilled.png">
+      <PackagePath>youtubeicons\dislikefilled.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\dislikehollow.png">
+      <PackagePath>youtubeicons\dislikehollow.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\exitfullscreen.png">
+      <PackagePath>youtubeicons\exitfullscreen.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\fullscreen.png">
+      <PackagePath>youtubeicons\fullscreen.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\homefilled.png">
+      <PackagePath>youtubeicons\homefilled.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\homehollow.png">
+      <PackagePath>youtubeicons\homehollow.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\informationicon.png">
+      <PackagePath>youtubeicons\informationicon.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\lastvideo.png">
+      <PackagePath>youtubeicons\lastvideo.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\libraryfilled.png">
+      <PackagePath>youtubeicons\libraryfilled.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\libraryhollow.png">
+      <PackagePath>youtubeicons\libraryhollow.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\likefilled.png">
+      <PackagePath>youtubeicons\likefilled.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\likehollow.png">
+      <PackagePath>youtubeicons\likehollow.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\minimizevideo.png">
+      <PackagePath>youtubeicons\minimizevideo.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\nextvideo.png">
+      <PackagePath>youtubeicons\nextvideo.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\pause.png">
+      <PackagePath>youtubeicons\pause.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\play.png">
+      <PackagePath>youtubeicons\play.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\savetoplaylist.png">
+      <PackagePath>youtubeicons\savetoplaylist.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\searchicon.png">
+      <PackagePath>youtubeicons\searchicon.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\settingsicon.png">
+      <PackagePath>youtubeicons\settingsicon.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\shareicon.png">
+      <PackagePath>youtubeicons\shareicon.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\shortsfilled.png">
+      <PackagePath>youtubeicons\shortsfilled.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\shortshollow.png">
+      <PackagePath>youtubeicons\shortshollow.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\subscriptionsfilled.png">
+      <PackagePath>youtubeicons\subscriptionsfilled.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\youtubeicons\subscriptionshollow.png">
+      <PackagePath>youtubeicons\subscriptionshollow.png</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-Black.ttf">
+      <PackagePath>robotos\Roboto-Black.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-BlackItalic.ttf">
+      <PackagePath>robotos\Roboto-BlackItalic.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-Bold.ttf">
+      <PackagePath>robotos\Roboto-Bold.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-BoldItalic.ttf">
+      <PackagePath>robotos\Roboto-BoldItalic.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-ExtraBold.ttf">
+      <PackagePath>robotos\Roboto-ExtraBold.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-ExtraBoldItalic.ttf">
+      <PackagePath>robotos\Roboto-ExtraBoldItalic.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-ExtraLight.ttf">
+      <PackagePath>robotos\Roboto-ExtraLight.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-ExtraLightItalic.ttf">
+      <PackagePath>robotos\Roboto-ExtraLightItalic.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-Italic.ttf">
+      <PackagePath>robotos\Roboto-Italic.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-Light.ttf">
+      <PackagePath>robotos\Roboto-Light.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-LightItalic.ttf">
+      <PackagePath>robotos\Roboto-LightItalic.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-Medium.ttf">
+      <PackagePath>robotos\Roboto-Medium.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-MediumItalic.ttf">
+      <PackagePath>robotos\Roboto-MediumItalic.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-Regular.ttf">
+      <PackagePath>robotos\Roboto-Regular.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-SemiBold.ttf">
+      <PackagePath>robotos\Roboto-SemiBold.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-SemiBoldItalic.ttf">
+      <PackagePath>robotos\Roboto-SemiBoldItalic.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-Thin.ttf">
+      <PackagePath>robotos\Roboto-Thin.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\robotos\Roboto-ThinItalic.ttf">
+      <PackagePath>robotos\Roboto-ThinItalic.ttf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\App1.xr.xml">
+      <PackagePath>App1.xr.xml</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\App.xbf">
+      <PackagePath>App.xbf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\ChannelPage.xbf">
+      <PackagePath>ChannelPage.xbf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\Controls\MaterialSpinner.xbf">
+      <PackagePath>Controls\MaterialSpinner.xbf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\Controls\ShimmerPlaceholder.xbf">
+      <PackagePath>Controls\ShimmerPlaceholder.xbf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\MainPage.xbf">
+      <PackagePath>MainPage.xbf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\PlaylistPage.xbf">
+      <PackagePath>PlaylistPage.xbf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\SettingsPage.xbf">
+      <PackagePath>SettingsPage.xbf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\VideoPage.xbf">
+      <PackagePath>VideoPage.xbf</PackagePath>
+    </AppxPackagedFile>
+    <AppxPackagedFile Include="C:\Users\Luke\Documents\Visual Studio 2015\Projects\App1\App1\bin\Debug\resources.pri">
+      <PackagePath>resources.pri</PackagePath>
+      <ReRegisterAppIfChanged>true</ReRegisterAppIfChanged>
+    </AppxPackagedFile>
+  </ItemGroup>
+  <ItemGroup>
+  </ItemGroup>
+</Project>
