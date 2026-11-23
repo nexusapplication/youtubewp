@@ -34,6 +34,7 @@ namespace App1.Helpers
 
                 var uri = new Uri(url, UriKind.Absolute);
                 Put(key, image);
+                image.ImageFailed += (s, e) => Remove(key);
                 UiDispatcher.RunLow(() =>
                 {
                     try
@@ -45,6 +46,7 @@ namespace App1.Helpers
                     }
                     catch
                     {
+                        Remove(key);
                     }
                 });
 
@@ -71,6 +73,13 @@ namespace App1.Helpers
 
             Cache[key] = image;
             Order.Enqueue(key);
+        }
+
+        private static void Remove(string key)
+        {
+            // A failed download must not stay cached forever: drop the entry so
+            // the next request can retry once the image is reachable again.
+            Cache.Remove(key);
         }
     }
 }

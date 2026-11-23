@@ -2,6 +2,7 @@ using App1.Helpers;
 using App1.Models;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Data.Json;
 using Windows.Storage;
@@ -12,7 +13,7 @@ namespace App1.Services
     {
         private const string HistoryFile = "history.json";
         private const string SubsFile = "subscriptions.json";
-        private readonly object _lock = new object();
+        private readonly SemaphoreSlim _ioLock = new SemaphoreSlim(1, 1);
         private List<JsonObject> _history;
         private List<JsonObject> _subscriptions;
 
@@ -39,15 +40,23 @@ namespace App1.Services
                 return;
             }
 
-            EnsureLoaded();
-            RemoveById(_history, "videoId", video.VideoId);
-            _history.Insert(0, ToVideoObject(video));
-            while (_history.Count > 50)
+            await _ioLock.WaitAsync();
+            try
             {
-                _history.RemoveAt(_history.Count - 1);
-            }
+                EnsureLoaded();
+                RemoveById(_history, "videoId", video.VideoId);
+                _history.Insert(0, ToVideoObject(video));
+                while (_history.Count > 50)
+                {
+                    _history.RemoveAt(_history.Count - 1);
+                }
 
-            await SaveListAsync(HistoryFile, _history);
+                await SaveListAsync(HistoryFile, _history);
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
         }
 
         public bool IsSubscribed(string authorId)
@@ -63,6 +72,19 @@ namespace App1.Services
                 return false;
             }
 
+            await _ioLock.WaitAsync();
+            try
+            {
+                return await ToggleSubscriptionCoreAsync(channel);
+            }
+            finally
+            {
+                _ioLock.Release();
+            }
+        }
+
+        private async Task<bool> ToggleSubscriptionCoreAsync(Models.ChannelItem channel)
+        {
             EnsureLoaded();
             var index = FindIndex(_subscriptions, "authorId", channel.AuthorId);
             var subscribed = index >= 0;
@@ -87,7 +109,12 @@ namespace App1.Services
 
             if (subscribed)
             {
-                _subscriptions.RemoveAt(index);
+                index = FindIndex(_subscriptions, "authorId", channel.AuthorId);
+                if (index >= 0)
+                {
+                    _subscriptions.RemoveAt(index);
+                }
+
                 await SaveListAsync(SubsFile, _subscriptions);
                 return false;
             }
@@ -109,9 +136,17 @@ namespace App1.Services
                 return;
             }
 
+            await _ioLock.WaitAsync();
             try
             {
-                var channels = await App1.App.Api.DataApi.GetSubscribedChannelsAsync(50);
+                // A null result means the fetch failed: keep whatever is stored
+                // locally instead of wiping the subscription list.
+                var channels = await App1.App.Api.DataApi.GetSubscribedChannelsAsync(500);
+                if (channels == null)
+                {
+                    return;
+                }
+
                 EnsureLoaded();
                 _subscriptions.Clear();
                 foreach (var channel in channels)
@@ -128,6 +163,10 @@ namespace App1.Services
             }
             catch
             {
+            }
+            finally
+            {
+                _ioLock.Release();
             }
         }
 

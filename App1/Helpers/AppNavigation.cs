@@ -105,6 +105,12 @@ namespace App1.Helpers
                 return;
             }
 
+            // A quick double tap must not stack two Settings pages.
+            if (page.Frame.CurrentSourcePageType == typeof(SettingsPage))
+            {
+                return;
+            }
+
             page.Frame.ContentTransitions = null;
             page.Frame.Navigate(typeof(SettingsPage));
         }

@@ -85,6 +85,8 @@ namespace App1
             _shorts.Clear();
             _forYou.Clear();
             _featured.Clear();
+            PostsList.ItemsSource = null;
+            PostsEmpty.Visibility = Visibility.Collapsed;
             _descriptionExpanded = false;
             SelectTab(0);
             ErrorText.Visibility = Visibility.Collapsed;
@@ -259,6 +261,8 @@ namespace App1
             _channel = snapshot.Channel;
             NavigationContext.SetChannel(_channel.AuthorId);
             BindChannelHeader();
+            PostsList.ItemsSource = null;
+            PostsEmpty.Visibility = Visibility.Collapsed;
 
             _videos.Clear();
             if (snapshot.Videos != null)

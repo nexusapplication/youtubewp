@@ -542,15 +542,17 @@ namespace App1.Services
                 {
                     cts = new CancellationTokenSource(TimeSpan.FromSeconds(18));
                     var uri = new Uri(instance.TrimEnd('/') + relativePath);
-                    var response = await _http.GetAsync(uri).AsTask(cts.Token);
-                    if (response.IsSuccessStatusCode)
+                    using (var response = await _http.GetAsync(uri).AsTask(cts.Token))
                     {
-                        CurrentInstance = instance;
-                        ApplicationData.Current.LocalSettings.Values["InstanceUrl"] = instance;
-                        return await response.Content.ReadAsStringAsync();
-                    }
+                        if (response.IsSuccessStatusCode)
+                        {
+                            CurrentInstance = instance;
+                            ApplicationData.Current.LocalSettings.Values["InstanceUrl"] = instance;
+                            return await response.Content.ReadAsStringAsync();
+                        }
 
-                    lastError = new Exception("HTTP " + ((int)response.StatusCode).ToString());
+                        lastError = new Exception("HTTP " + ((int)response.StatusCode).ToString());
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -597,20 +599,28 @@ namespace App1.Services
 
             if (list.Count == 0 || forceRefresh)
             {
+                CancellationTokenSource cts = null;
                 try
                 {
-                    var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-                    var response = await _http.GetAsync(new Uri("https://api.invidious.io/instances.json")).AsTask(cts.Token);
-                    if (response.IsSuccessStatusCode)
+                    cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+                    using (var response = await _http.GetAsync(new Uri("https://api.invidious.io/instances.json")).AsTask(cts.Token))
                     {
-                        var json = await response.Content.ReadAsStringAsync();
-                        ParseInstances(json, list);
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var json = await response.Content.ReadAsStringAsync();
+                            ParseInstances(json, list);
+                        }
                     }
-
-                    cts.Dispose();
                 }
                 catch
                 {
+                }
+                finally
+                {
+                    if (cts != null)
+                    {
+                        cts.Dispose();
+                    }
                 }
             }
 

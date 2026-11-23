@@ -9,20 +9,28 @@ namespace App1.Helpers
         {
             if (value >= 1000000000)
             {
-                return (value / 1000000000.0).ToString("0.#", CultureInfo.InvariantCulture) + "B";
+                return Trimmed(value / 1000000000.0) + "B";
             }
 
             if (value >= 1000000)
             {
-                return (value / 1000000.0).ToString("0.#", CultureInfo.InvariantCulture) + "M";
+                return Trimmed(value / 1000000.0) + "M";
             }
 
             if (value >= 1000)
             {
-                return (value / 1000.0).ToString("0.#", CultureInfo.InvariantCulture) + "K";
+                return Trimmed(value / 1000.0) + "K";
             }
 
             return value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private static string Trimmed(double scaled)
+        {
+            // Truncate instead of rounding up: 999,999 has to stay "999.9K"
+            // instead of turning into "1000K".
+            var truncated = Math.Floor(scaled * 10.0) / 10.0;
+            return truncated.ToString("0.#", CultureInfo.InvariantCulture);
         }
 
         public static string Views(long value)
@@ -136,6 +144,7 @@ namespace App1.Helpers
             }
 
             var buffer = "";
+            var suffixIndex = -1;
             for (int i = 0; i < text.Length; i++)
             {
                 var c = text[i];
@@ -143,29 +152,111 @@ namespace App1.Helpers
                 {
                     buffer += c;
                 }
+                else if ((c == ' ' || c == '\u00A0')
+                    && buffer.Length > 0
+                    && i + 1 < text.Length
+                    && text[i + 1] >= '0' && text[i + 1] <= '9')
+                {
+                    // A space between digits groups thousands ("1 234 vues").
+                    buffer += ' ';
+                }
                 else if (buffer.Length > 0)
                 {
+                    suffixIndex = i;
                     break;
                 }
             }
 
-            buffer = buffer.Replace(",", "");
+            buffer = buffer.Replace(" ", "").Replace("\u00A0", "");
+
+            // "1,234" / "1.234" group thousands, while "1,2K" / "1.2M" use the
+            // separator as a decimal point. Keep the two apart so localized
+            // strings don't come back 10x-1000x off.
+            var normalized = buffer;
+            if (System.Text.RegularExpressions.Regex.IsMatch(buffer, "^\\d{1,3}([.,]\\d{3})+$"))
+            {
+                normalized = normalized.Replace(",", "").Replace(".", "");
+            }
+            else if (System.Text.RegularExpressions.Regex.IsMatch(buffer, "^\\d+[.,]\\d+$"))
+            {
+                normalized = normalized.Replace(',', '.');
+            }
+            else
+            {
+                var lastComma = normalized.LastIndexOf(',');
+                var lastDot = normalized.LastIndexOf('.');
+                if (lastComma >= 0 && lastDot >= 0)
+                {
+                    // Mixed separators: the right-most one is the decimal mark.
+                    if (lastComma > lastDot)
+                    {
+                        normalized = normalized.Replace(".", "").Replace(',', '.');
+                    }
+                    else
+                    {
+                        normalized = normalized.Replace(",", "");
+                    }
+                }
+                else
+                {
+                    normalized = normalized.Replace(",", "").Replace(".", "");
+                }
+            }
+
             double value;
-            if (!double.TryParse(buffer, NumberStyles.Any, CultureInfo.InvariantCulture, out value))
+            if (!double.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out value))
             {
                 return 0;
             }
 
-            var upper = text.ToUpperInvariant();
-            if (upper.IndexOf('B') >= 0 && value < 1000000)
+            // The multiplier only counts for a real unit marker: a lone K/M/B
+            // ("1.2M views") or a localized word like "Mio" / "Million". A plain
+            // word that merely starts with one of those letters ("123
+            // Kommentare") must stay untouched.
+            var suffix = '\0';
+            if (suffixIndex > 0 && suffixIndex < text.Length)
+            {
+                var markerIndex = suffixIndex;
+                while (markerIndex < text.Length
+                    && (text[markerIndex] == ' ' || text[markerIndex] == '\u00A0' || text[markerIndex] == '.'))
+                {
+                    markerIndex++;
+                }
+
+                var wordStart = markerIndex;
+                while (markerIndex < text.Length && char.IsLetter(text[markerIndex]))
+                {
+                    markerIndex++;
+                }
+
+                var word = text.Substring(wordStart, markerIndex - wordStart);
+                if (word.Length == 1)
+                {
+                    var lone = char.ToUpperInvariant(word[0]);
+                    if (lone == 'K' || lone == 'M' || lone == 'B')
+                    {
+                        suffix = lone;
+                    }
+                }
+                else
+                {
+                    var lower = word.ToLowerInvariant();
+                    if (lower.StartsWith("mio") || lower.StartsWith("mill") || lower == "mln")
+                    {
+                        suffix = 'M';
+                    }
+                }
+            }
+
+            if (suffix == 'B' && value < 1000000)
             {
                 value *= 1000000000;
             }
-            else if (upper.IndexOf('M') >= 0 && value < 1000000)
+            else if (suffix == 'M' && value < 1000000)
             {
                 value *= 1000000;
             }
-            else if (upper.IndexOf('K') >= 0 && value < 1000)
+            else if (suffix == 'K' && value < 1000)
             {
                 value *= 1000;
             }

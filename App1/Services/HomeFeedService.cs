@@ -20,6 +20,7 @@ namespace App1.Services
         private int _subscriptionChannelIndex;
         private List<VideoItem> _shortsPool;
         private List<CommunityPostItem> _postsPool;
+        private readonly object _poolLock = new object();
         private bool _extrasLoaded;
         private bool _extrasLoading;
 
@@ -38,18 +39,21 @@ namespace App1.Services
 
         public void Reset()
         {
-            _anonymousVideoQueue = null;
-            _anonymousVideoIndex = 0;
-            _subscriptionChannels = null;
-            _subscriptionChannelIndex = 0;
-            _shortsPool = null;
-            _postsPool = null;
-            _extrasLoaded = false;
-            _extrasLoading = false;
-            _stepsUntilShorts = 0;
-            _stepsUntilPost = 0;
-            _scatterShortPool = null;
-            _scatterPostPool = null;
+            lock (_poolLock)
+            {
+                _anonymousVideoQueue = null;
+                _anonymousVideoIndex = 0;
+                _subscriptionChannels = null;
+                _subscriptionChannelIndex = 0;
+                _shortsPool = null;
+                _postsPool = null;
+                _extrasLoaded = false;
+                _extrasLoading = false;
+                _stepsUntilShorts = 0;
+                _stepsUntilPost = 0;
+                _scatterShortPool = null;
+                _scatterPostPool = null;
+            }
         }
 
         public async Task<FeedItem> LoadNextItemAsync()
@@ -105,13 +109,23 @@ namespace App1.Services
                 return;
             }
 
+            var loadedAny = false;
             try
             {
-                _shortsPool = await _api.GetShortsAsync();
+                var shorts = await _api.GetShortsAsync();
+                lock (_poolLock)
+                {
+                    _shortsPool = shorts ?? new List<VideoItem>();
+                }
+
+                loadedAny = true;
             }
             catch
             {
-                _shortsPool = new List<VideoItem>();
+                lock (_poolLock)
+                {
+                    _shortsPool = new List<VideoItem>();
+                }
             }
 
             try
@@ -119,20 +133,47 @@ namespace App1.Services
                 if (_auth.IsSignedIn)
                 {
                     var channels = await _data.GetSubscribedChannelIdsAsync(12);
-                    _postsPool = await _api.GetCommunityPostsForChannelsAsync(channels, 16);
+                    var channelPosts = await _api.GetCommunityPostsForChannelsAsync(channels, 16);
+                    lock (_poolLock)
+                    {
+                        _postsPool = channelPosts;
+                    }
                 }
 
-                if (_postsPool == null || _postsPool.Count == 0)
+                List<CommunityPostItem> currentPosts;
+                lock (_poolLock)
                 {
-                    _postsPool = await _api.GetCommunityPostsAsync();
+                    currentPosts = _postsPool;
                 }
+
+                if (currentPosts == null || currentPosts.Count == 0)
+                {
+                    var posts = await _api.GetCommunityPostsAsync();
+                    lock (_poolLock)
+                    {
+                        _postsPool = posts;
+                    }
+                }
+
+                loadedAny = true;
             }
             catch
             {
-                _postsPool = new List<CommunityPostItem>();
+                lock (_poolLock)
+                {
+                    if (_postsPool == null)
+                    {
+                        _postsPool = new List<CommunityPostItem>();
+                    }
+                }
             }
 
-            _extrasLoaded = true;
+            // Only treat the extras as loaded when a fetch actually succeeded, so
+            // one transient failure doesn't empty the shorts/posts for the session.
+            if (loadedAny)
+            {
+                _extrasLoaded = true;
+            }
         }
 
         private List<VideoItem> GetShortsPool()
@@ -149,13 +190,24 @@ namespace App1.Services
 
         private void ResetScatterState()
         {
-            _stepsUntilShorts = FeedMixer.NextScatterGap();
-            _stepsUntilPost = FeedMixer.NextScatterGap();
-            _scatterShortPool = new List<VideoItem>(GetShortsPool());
-            _scatterPostPool = new List<CommunityPostItem>(GetPostsPool());
+            lock (_poolLock)
+            {
+                _stepsUntilShorts = FeedMixer.NextScatterGap();
+                _stepsUntilPost = FeedMixer.NextScatterGap();
+                _scatterShortPool = new List<VideoItem>(GetShortsPool());
+                _scatterPostPool = new List<CommunityPostItem>(GetPostsPool());
+            }
         }
 
         private void MergeExtrasIntoScatterPools()
+        {
+            lock (_poolLock)
+            {
+                MergeExtrasIntoScatterPoolsLocked();
+            }
+        }
+
+        private void MergeExtrasIntoScatterPoolsLocked()
         {
             if (_scatterShortPool == null)
             {
@@ -223,6 +275,14 @@ namespace App1.Services
         }
 
         private FeedItem TryTakeScatteredExtra(int shortsShelfSize)
+        {
+            lock (_poolLock)
+            {
+                return TryTakeScatteredExtraLocked(shortsShelfSize);
+            }
+        }
+
+        private FeedItem TryTakeScatteredExtraLocked(int shortsShelfSize)
         {
             if (_scatterShortPool == null || _scatterPostPool == null)
             {
@@ -298,8 +358,11 @@ namespace App1.Services
                         var channelPosts = await _api.GetCommunityPostsForChannelsAsync(ids, 12);
                         if (channelPosts != null && channelPosts.Count > 0)
                         {
-                            _postsPool = channelPosts;
-                            MergeExtrasIntoScatterPools();
+                            lock (_poolLock)
+                            {
+                                _postsPool = channelPosts;
+                                MergeExtrasIntoScatterPoolsLocked();
+                            }
                         }
                     }
                     catch
@@ -336,7 +399,17 @@ namespace App1.Services
         {
             if (_subscriptionChannels == null)
             {
-                _subscriptionChannels = await _data.GetSubscribedChannelIdsAsync(50);
+                try
+                {
+                    _subscriptionChannels = await _data.GetSubscribedChannelIdsAsync(50);
+                }
+                catch
+                {
+                    // Fall back to the anonymous feed when the subscriptions call
+                    // fails, instead of aborting the whole home feed.
+                    _subscriptionChannels = new List<string>();
+                }
+
                 _subscriptionChannelIndex = 0;
                 ResetScatterState();
 
