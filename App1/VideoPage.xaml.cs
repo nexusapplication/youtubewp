@@ -111,12 +111,27 @@ namespace App1
             var restoringFromMini = MiniPlayerSession.IsActive && MiniPlayerSession.VideoId == videoId;
             if (!restoringFromMini && _details != null && _details.VideoId == videoId)
             {
+                // Navigating away stops the player and clears its source; when we
+                // come back to this video, start it again instead of leaving a
+                // dead player behind.
+                if (Player.Source == null)
+                {
+                    StartPlayback();
+                }
+
                 return;
             }
 
             _videoLoadGeneration++;
             var gen = _videoLoadGeneration;
             _videoId = videoId;
+
+            // The comments panel still belongs to the previous video here.
+            CommentsList.ItemsSource = null;
+            if (TopCommentText != null)
+            {
+                TopCommentText.Text = "Tap to read comments";
+            }
 
             var snapshot = AppContentCache.GetVideo(videoId);
             if (restoringFromMini || (snapshot != null && snapshot.Details != null))
@@ -1163,7 +1178,14 @@ namespace App1
                 Duration = new Duration(TimeSpan.FromMilliseconds(180)),
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
             };
-            var animationScale = new DoubleAnimation
+            var animationScaleX = new DoubleAnimation
+            {
+                From = fromScale,
+                To = 1,
+                Duration = new Duration(TimeSpan.FromMilliseconds(180)),
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            var animationScaleY = new DoubleAnimation
             {
                 From = fromScale,
                 To = 1,
@@ -1179,14 +1201,15 @@ namespace App1
             };
             var storyboard = new Storyboard();
             storyboard.Children.Add(animationY);
-            storyboard.Children.Add(animationScale);
+            storyboard.Children.Add(animationScaleX);
+            storyboard.Children.Add(animationScaleY);
             storyboard.Children.Add(animationOpacity);
             Storyboard.SetTarget(animationY, PlayerHostTransform);
             Storyboard.SetTargetProperty(animationY, "Y");
-            Storyboard.SetTarget(animationScale, PlayerHostScale);
-            Storyboard.SetTargetProperty(animationScale, "ScaleX");
-            Storyboard.SetTarget(animationScale, PlayerHostScale);
-            Storyboard.SetTargetProperty(animationScale, "ScaleY");
+            Storyboard.SetTarget(animationScaleX, PlayerHostScale);
+            Storyboard.SetTargetProperty(animationScaleX, "ScaleX");
+            Storyboard.SetTarget(animationScaleY, PlayerHostScale);
+            Storyboard.SetTargetProperty(animationScaleY, "ScaleY");
             Storyboard.SetTarget(animationOpacity, ContentScroll);
             Storyboard.SetTargetProperty(animationOpacity, "Opacity");
             storyboard.Begin();

@@ -61,6 +61,19 @@ namespace App1
             }
         }
 
+        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        {
+            // GoogleAuth lives as long as the app does, so drop the handler here:
+            // otherwise every SettingsPage that ran a sign-in stays reachable.
+            if (_deviceCodeHooked)
+            {
+                App.Api.GoogleAuth.DeviceCodeReceived -= OnDeviceCodeReceived;
+                _deviceCodeHooked = false;
+            }
+
+            base.OnNavigatedFrom(e);
+        }
+
         private void UpdateBackendUi()
         {
             InvidiousPanel.Visibility = App.Api.UseInnerTube ? Visibility.Collapsed : Visibility.Visible;

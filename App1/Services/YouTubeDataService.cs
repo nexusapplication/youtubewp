@@ -111,7 +111,7 @@ namespace App1.Services
             }
 
             var uri =
-                "https://www.googleapis.com/youtube/v3/playlists?part=snippet&mine=true&maxResults="
+                "https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&mine=true&maxResults="
                 + Math.Min(50, maxResults);
 
             var json = await GetJsonAsync(uri, token);
@@ -131,11 +131,16 @@ namespace App1.Services
 
                 var item = entry.GetObject();
                 var snippet = JsonUtil.GetObject(item, "snippet");
+                var contentDetails = JsonUtil.GetObject(item, "contentDetails");
                 var summary = new PlaylistSummary();
                 summary.PlaylistId = JsonUtil.GetString(item, "id");
                 summary.Title = JsonUtil.GetString(snippet, "title");
                 summary.Description = JsonUtil.GetString(snippet, "description");
-                summary.ItemCount = JsonUtil.GetInt32(snippet, "itemCount");
+                summary.ItemCount = JsonUtil.GetInt32(contentDetails, "itemCount");
+                if (summary.ItemCount <= 0)
+                {
+                    summary.ItemCount = JsonUtil.GetInt32(snippet, "itemCount");
+                }
                 summary.Thumbnail = PickThumb(JsonUtil.GetObject(snippet, "thumbnails"));
                 list.Add(summary);
             }
@@ -152,43 +157,58 @@ namespace App1.Services
                 return videos;
             }
 
-            var uri =
-                "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId="
-                + Uri.EscapeDataString(playlistId)
-                + "&maxResults=" + Math.Min(50, maxResults);
-
-            var json = await GetJsonAsync(uri, token);
-            var obj = JsonUtil.ParseObject(json);
-            var items = JsonUtil.GetArray(obj, "items");
-            if (items == null)
+            var pageToken = "";
+            while (videos.Count < maxResults)
             {
-                return videos;
-            }
+                var take = Math.Min(50, maxResults - videos.Count);
+                var uri =
+                    "https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId="
+                    + Uri.EscapeDataString(playlistId)
+                    + "&maxResults=" + take
+                    + (string.IsNullOrEmpty(pageToken) ? "" : "&pageToken=" + Uri.EscapeDataString(pageToken));
 
-            foreach (var entry in items)
-            {
-                if (entry.ValueType != JsonValueType.Object)
+                var json = await GetJsonAsync(uri, token);
+                var obj = JsonUtil.ParseObject(json);
+                var items = JsonUtil.GetArray(obj, "items");
+                if (items == null)
                 {
-                    continue;
+                    break;
                 }
 
-                var video = ParsePlaylistVideo(entry.GetObject());
-                if (video != null && !string.IsNullOrEmpty(video.VideoId))
+                foreach (var entry in items)
                 {
-                    videos.Add(video);
+                    if (entry.ValueType != JsonValueType.Object)
+                    {
+                        continue;
+                    }
+
+                    var video = ParsePlaylistVideo(entry.GetObject());
+                    if (video != null && !string.IsNullOrEmpty(video.VideoId))
+                    {
+                        videos.Add(video);
+                    }
+                }
+
+                pageToken = JsonUtil.GetString(obj, "nextPageToken");
+                if (string.IsNullOrEmpty(pageToken))
+                {
+                    break;
                 }
             }
 
             return videos;
         }
 
+        // Returns null when the subscriptions could not be fetched (expired or
+        // unusable token, network failure) so callers can tell that apart from an
+        // account that really has no subscriptions.
         public async Task<List<ChannelItem>> GetSubscribedChannelsAsync(int maxResults)
         {
             var channels = new List<ChannelItem>();
             var token = await _auth.GetValidAccessTokenAsync();
             if (string.IsNullOrEmpty(token))
             {
-                return channels;
+                return null;
             }
 
             string pageToken = "";

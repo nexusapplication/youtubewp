@@ -20,6 +20,7 @@ namespace App1.Helpers
 
             var animation = new DoubleAnimation
             {
+                From = target.Opacity,
                 To = to,
                 Duration = new Duration(TimeSpan.FromMilliseconds(durationMs)),
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
@@ -56,7 +57,15 @@ namespace App1.Helpers
                 return;
             }
 
-            FadeTo(target, 0, durationMs, () => target.Visibility = Visibility.Collapsed);
+            FadeTo(target, 0, durationMs, () =>
+            {
+                // A Show() that started after this Hide has to win: only collapse
+                // when the fade actually reached zero.
+                if (target.Opacity <= 0.01)
+                {
+                    target.Visibility = Visibility.Collapsed;
+                }
+            });
         }
     }
 }

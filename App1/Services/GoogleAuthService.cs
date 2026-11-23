@@ -18,6 +18,7 @@ namespace App1.Services
         private readonly HttpClient _http = new HttpClient();
         private TaskCompletionSource<bool> _signInTask;
         private string _pendingRedirect;
+        private string _lastTokenErrorCode;
 
         public event Action<string, string> DeviceCodeReceived;
 
@@ -118,11 +119,14 @@ namespace App1.Services
                         BuildForm(body),
                         UnicodeEncoding.Utf8,
                         "application/x-www-form-urlencoded");
-                    var response = await _http.SendRequestAsync(request).AsTask(cts.Token);
-                    var text = await response.Content.ReadAsStringAsync();
-                    if (response.IsSuccessStatusCode)
+                    string text;
+                    using (var response = await _http.SendRequestAsync(request).AsTask(cts.Token))
                     {
-                        return StoreTokenResponse(text);
+                        text = await response.Content.ReadAsStringAsync();
+                        if (response.IsSuccessStatusCode)
+                        {
+                            return StoreTokenResponse(text);
+                        }
                     }
 
                     var errorCode = GetTokenErrorCode(text);
@@ -161,15 +165,17 @@ namespace App1.Services
                     BuildForm(fields),
                     UnicodeEncoding.Utf8,
                     "application/x-www-form-urlencoded");
-                var response = await _http.SendRequestAsync(request).AsTask(cts.Token);
-                var text = await response.Content.ReadAsStringAsync();
-                if (!response.IsSuccessStatusCode)
+                using (var response = await _http.SendRequestAsync(request).AsTask(cts.Token))
                 {
-                    LastError = ParseTokenError(text);
-                    throw new Exception(LastError);
-                }
+                    var text = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        LastError = ParseTokenError(text);
+                        throw new Exception(LastError);
+                    }
 
-                return text;
+                    return text;
+                }
             }
             finally
             {
@@ -346,8 +352,20 @@ namespace App1.Services
                 var json = await PostTokenAsync(body);
                 return StoreTokenResponse(json);
             }
-            catch
+            catch (Exception ex)
             {
+                if (string.Equals(_lastTokenErrorCode, "invalid_grant", StringComparison.OrdinalIgnoreCase))
+                {
+                    // The refresh token itself is no longer usable: sign out so the
+                    // app doesn't keep pretending to be signed in with a dead token.
+                    SignOut();
+                    LastError = "Your Google sign-in has expired. Please sign in again.";
+                }
+                else
+                {
+                    LastError = "Could not refresh the Google sign-in: " + ex.Message;
+                }
+
                 return false;
             }
         }
@@ -362,15 +380,18 @@ namespace App1.Services
                     BuildForm(fields),
                     UnicodeEncoding.Utf8,
                     "application/x-www-form-urlencoded");
-                var response = await _http.SendRequestAsync(request).AsTask(cts.Token);
-                var text = await response.Content.ReadAsStringAsync();
-                if (!response.IsSuccessStatusCode)
+                using (var response = await _http.SendRequestAsync(request).AsTask(cts.Token))
                 {
-                    LastError = ParseTokenError(text);
-                    throw new Exception(LastError);
-                }
+                    var text = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        LastError = ParseTokenError(text);
+                        _lastTokenErrorCode = GetTokenErrorCode(text);
+                        throw new Exception(LastError);
+                    }
 
-                return text;
+                    return text;
+                }
             }
             finally
             {
@@ -410,22 +431,34 @@ namespace App1.Services
 
         private bool StoreTokenResponse(string json)
         {
-            var obj = JsonObject.Parse(json);
-            var access = obj.ContainsKey("access_token") ? obj["access_token"].GetString() : "";
-            if (string.IsNullOrEmpty(access))
+            try
+            {
+                var obj = JsonObject.Parse(json);
+                var access = JsonGetString(obj, "access_token");
+                if (string.IsNullOrEmpty(access))
+                {
+                    return false;
+                }
+
+                SetSetting("GoogleAccessToken", access);
+                if (obj.ContainsKey("refresh_token") && obj["refresh_token"].ValueType == JsonValueType.String)
+                {
+                    SetSetting("GoogleRefreshToken", obj["refresh_token"].GetString());
+                }
+
+                var expiresIn = 3600L;
+                if (obj.ContainsKey("expires_in") && obj["expires_in"].ValueType == JsonValueType.Number)
+                {
+                    expiresIn = (long)obj["expires_in"].GetNumber();
+                }
+
+                SetSetting("GoogleTokenExpiry", (UnixNow() + expiresIn).ToString());
+                return true;
+            }
+            catch
             {
                 return false;
             }
-
-            SetSetting("GoogleAccessToken", access);
-            if (obj.ContainsKey("refresh_token") && obj["refresh_token"].ValueType == JsonValueType.String)
-            {
-                SetSetting("GoogleRefreshToken", obj["refresh_token"].GetString());
-            }
-
-            var expiresIn = obj.ContainsKey("expires_in") ? (long)obj["expires_in"].GetNumber() : 3600;
-            SetSetting("GoogleTokenExpiry", (UnixNow() + expiresIn).ToString());
-            return true;
         }
 
         private static long UnixNow()

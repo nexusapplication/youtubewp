@@ -28,6 +28,7 @@ namespace App1.Services
         private readonly Dictionary<string, int> _commentCountCache = new Dictionary<string, int>();
         private readonly Dictionary<string, List<CommentItem>> _commentsCache = new Dictionary<string, List<CommentItem>>();
         private readonly Dictionary<string, List<string>> _commentContinuationCache = new Dictionary<string, List<string>>();
+        private readonly object _cacheLock = new object();
         private string _visitorData;
 
         public InnerTubeService()
@@ -39,9 +40,12 @@ namespace App1.Services
         public string GetPlaybackUrl(string videoId, string itag)
         {
             List<string> urls;
-            if (!_playbackCache.TryGetValue(videoId, out urls) || urls == null || urls.Count == 0)
+            lock (_cacheLock)
             {
-                return "";
+                if (!_playbackCache.TryGetValue(videoId, out urls) || urls == null || urls.Count == 0)
+                {
+                    return "";
+                }
             }
 
             if (!string.IsNullOrEmpty(itag))
@@ -163,9 +167,10 @@ namespace App1.Services
                 {
                     try
                     {
+                        var before = combined.Count;
                         var json = await BrowseRawAsync(channelId, paramVariants[p], ClientKind.Web);
                         TryAddPosts(combined, ParseCommunityPosts(json));
-                        if (combined.Count > 0)
+                        if (combined.Count > before)
                         {
                             break;
                         }
@@ -299,16 +304,25 @@ namespace App1.Services
         public async Task<VideoDetails> GetVideoAsync(string videoId)
         {
             VideoDetails cached;
-            if (_detailsCache.TryGetValue(videoId, out cached) && cached != null)
+            lock (_cacheLock)
             {
-                return cached;
+                if (_detailsCache.TryGetValue(videoId, out cached) && cached != null)
+                {
+                    return cached;
+                }
             }
 
             VideoDetails details;
             Task<string> nextTask = null;
 
-            if (_playbackOnlyCache.TryGetValue(videoId, out details) && details != null
-                && details.PlaybackUrls != null && details.PlaybackUrls.Count > 0)
+            var hasCachedPlayback = false;
+            lock (_cacheLock)
+            {
+                hasCachedPlayback = _playbackOnlyCache.TryGetValue(videoId, out details) && details != null
+                    && details.PlaybackUrls != null && details.PlaybackUrls.Count > 0;
+            }
+
+            if (hasCachedPlayback)
             {
                 nextTask = PostAsync("next", WithVideoId(CreateWebBody(), videoId), ClientKind.Web);
             }
@@ -346,27 +360,38 @@ namespace App1.Services
             details.RatingText = details.LikeCount > 0
                 ? FormatUtil.Compact(details.LikeCount) + " likes"
                 : "";
-            _detailsCache[videoId] = details;
+            lock (_cacheLock)
+            {
+                _detailsCache[videoId] = details;
+            }
+
             return details;
         }
 
         public async Task<VideoDetails> GetVideoPlaybackAsync(string videoId)
         {
             VideoDetails cached;
-            if (_detailsCache.TryGetValue(videoId, out cached) && cached != null
-                && cached.PlaybackUrls != null && cached.PlaybackUrls.Count > 0)
+            lock (_cacheLock)
             {
-                return cached;
-            }
+                if (_detailsCache.TryGetValue(videoId, out cached) && cached != null
+                    && cached.PlaybackUrls != null && cached.PlaybackUrls.Count > 0)
+                {
+                    return cached;
+                }
 
-            if (_playbackOnlyCache.TryGetValue(videoId, out cached) && cached != null)
-            {
-                return cached;
+                if (_playbackOnlyCache.TryGetValue(videoId, out cached) && cached != null)
+                {
+                    return cached;
+                }
             }
 
             var player = await GetPlayerFastAsync(videoId);
             var details = BuildDetailsFromPlayer(videoId, player);
-            _playbackOnlyCache[videoId] = details;
+            lock (_cacheLock)
+            {
+                _playbackOnlyCache[videoId] = details;
+            }
+
             return details;
         }
 
@@ -405,21 +430,32 @@ namespace App1.Services
             details.AuthorThumbnail = ImageUrl.Normalize(details.AuthorThumbnail, 88);
             details.LikeText = details.LikeCount > 0 ? FormatUtil.Compact(details.LikeCount) : "Like";
             details.DislikeText = details.DislikeCount > 0 ? FormatUtil.Compact(details.DislikeCount) : "Hidden";
-            _playbackCache[videoId] = details.PlaybackUrls;
+            lock (_cacheLock)
+            {
+                _playbackCache[videoId] = details.PlaybackUrls;
+            }
+
             return details;
         }
 
         public async Task<List<VideoItem>> GetRecommendedAsync(string videoId)
         {
             List<VideoItem> cached;
-            if (_relatedCache.TryGetValue(videoId, out cached) && cached != null && cached.Count > 0)
+            lock (_cacheLock)
             {
-                return cached;
+                if (_relatedCache.TryGetValue(videoId, out cached) && cached != null && cached.Count > 0)
+                {
+                    return cached;
+                }
             }
 
             var json = await PostAsync("next", WithVideoId(CreateWebBody(), videoId), ClientKind.Web);
             var videos = await BackgroundWork.Run(() => ParseVideos(json, false));
-            _relatedCache[videoId] = videos;
+            lock (_cacheLock)
+            {
+                _relatedCache[videoId] = videos;
+            }
+
             return videos;
         }
 
@@ -440,9 +476,12 @@ namespace App1.Services
 
                 if (string.IsNullOrEmpty(video.AuthorThumbnail) || string.IsNullOrEmpty(video.Author))
                 {
-                    if (!_channelCache.ContainsKey(video.AuthorId) && !pending.Contains(video.AuthorId))
+                    lock (_cacheLock)
                     {
-                        pending.Add(video.AuthorId);
+                        if (!_channelCache.ContainsKey(video.AuthorId) && !pending.Contains(video.AuthorId))
+                        {
+                            pending.Add(video.AuthorId);
+                        }
                     }
                 }
             }
@@ -451,7 +490,11 @@ namespace App1.Services
             {
                 try
                 {
-                    _channelCache[pending[i]] = await GetChannelAsync(pending[i]);
+                    var fetched = await GetChannelAsync(pending[i]);
+                    lock (_cacheLock)
+                    {
+                        _channelCache[pending[i]] = fetched;
+                    }
                 }
                 catch
                 {
@@ -467,7 +510,12 @@ namespace App1.Services
                 }
 
                 ChannelItem channel;
-                if (_channelCache.TryGetValue(video.AuthorId, out channel))
+                lock (_cacheLock)
+                {
+                    _channelCache.TryGetValue(video.AuthorId, out channel);
+                }
+
+                if (channel != null)
                 {
                     VideoClassifier.EnrichFromChannel(video, channel);
                 }
@@ -481,7 +529,12 @@ namespace App1.Services
         public async Task<List<CommentItem>> GetCommentsAsync(string videoId)
         {
             List<CommentItem> cachedList;
-            if (_commentsCache.TryGetValue(videoId, out cachedList) && cachedList != null && cachedList.Count > 0)
+            lock (_cacheLock)
+            {
+                _commentsCache.TryGetValue(videoId, out cachedList);
+            }
+
+            if (cachedList != null && cachedList.Count > 0)
             {
                 return new List<CommentItem>(cachedList);
             }
@@ -489,7 +542,12 @@ namespace App1.Services
             var comments = new List<CommentItem>();
             var continuations = new List<string>();
             List<string> seedTokens;
-            if (_commentContinuationCache.TryGetValue(videoId, out seedTokens) && seedTokens != null)
+            lock (_cacheLock)
+            {
+                _commentContinuationCache.TryGetValue(videoId, out seedTokens);
+            }
+
+            if (seedTokens != null)
             {
                 for (int i = 0; i < seedTokens.Count; i++)
                 {
@@ -592,13 +650,16 @@ namespace App1.Services
 
             if (comments.Count > 0)
             {
-                int cached;
-                if (!_commentCountCache.TryGetValue(videoId, out cached) || comments.Count > cached)
+                lock (_cacheLock)
                 {
-                    _commentCountCache[videoId] = comments.Count;
-                }
+                    int cached;
+                    if (!_commentCountCache.TryGetValue(videoId, out cached) || comments.Count > cached)
+                    {
+                        _commentCountCache[videoId] = comments.Count;
+                    }
 
-                _commentsCache[videoId] = new List<CommentItem>(comments);
+                    _commentsCache[videoId] = new List<CommentItem>(comments);
+                }
             }
 
             return comments;
@@ -607,7 +668,13 @@ namespace App1.Services
         public async Task<int> GetCommentCountAsync(string videoId)
         {
             int count;
-            if (_commentCountCache.TryGetValue(videoId, out count))
+            bool hasCount;
+            lock (_cacheLock)
+            {
+                hasCount = _commentCountCache.TryGetValue(videoId, out count);
+            }
+
+            if (hasCount)
             {
                 return count;
             }
@@ -627,7 +694,12 @@ namespace App1.Services
         {
             var id = NormalizeChannelId(channelId);
             ChannelItem cached;
-            if (_channelCache.TryGetValue(id, out cached) && cached != null && !string.IsNullOrEmpty(cached.Author))
+            lock (_cacheLock)
+            {
+                _channelCache.TryGetValue(id, out cached);
+            }
+
+            if (cached != null && !string.IsNullOrEmpty(cached.Author))
             {
                 return cached;
             }
@@ -710,7 +782,11 @@ namespace App1.Services
                 item.AuthorHandle = item.AuthorId.StartsWith("@") ? item.AuthorId : "";
             }
 
-            _channelCache[id] = item;
+            lock (_cacheLock)
+            {
+                _channelCache[id] = item;
+            }
+
             return item;
         }
 
@@ -760,7 +836,12 @@ namespace App1.Services
         {
             var key = browseId + "|" + (browseParams ?? "") + "|" + client.ToString();
             string cached;
-            if (_browseJsonCache.TryGetValue(key, out cached))
+            lock (_cacheLock)
+            {
+                _browseJsonCache.TryGetValue(key, out cached);
+            }
+
+            if (cached != null)
             {
                 return cached;
             }
@@ -768,7 +849,10 @@ namespace App1.Services
             var json = await BrowseRawAsync(browseId, browseParams, client);
             if (!string.IsNullOrWhiteSpace(json))
             {
-                _browseJsonCache[key] = json;
+                lock (_cacheLock)
+                {
+                    _browseJsonCache[key] = json;
+                }
             }
 
             return json ?? "";
@@ -783,13 +867,16 @@ namespace App1.Services
         public void ClearAllCaches()
         {
             ClearBrowseCache();
-            _detailsCache.Clear();
-            _playbackOnlyCache.Clear();
-            _relatedCache.Clear();
-            _channelCache.Clear();
-            _commentCountCache.Clear();
-            _commentsCache.Clear();
-            _commentContinuationCache.Clear();
+            lock (_cacheLock)
+            {
+                _detailsCache.Clear();
+                _playbackOnlyCache.Clear();
+                _relatedCache.Clear();
+                _channelCache.Clear();
+                _commentCountCache.Clear();
+                _commentsCache.Clear();
+                _commentContinuationCache.Clear();
+            }
         }
 
         private async Task<JsonObject> GetPlayerAsync(string videoId)
@@ -946,13 +1033,10 @@ namespace App1.Services
                     var likeText = JsonUtil.GetText(node, "likeCountIfLiked") + " " + JsonUtil.GetText(node, "title");
                     var label = JsonUtil.GetText(JsonUtil.GetPath(node, "accessibility", "accessibilityData"));
                     var combined = likeText + " " + label + " " + JsonUtil.GetText(node, "defaultText");
-                    if (combined.IndexOf("like", StringComparison.OrdinalIgnoreCase) >= 0)
+                    var parsed = ParseLikeCount(combined);
+                    if (parsed > details.LikeCount && parsed < 10000000000)
                     {
-                        var parsed = FormatUtil.ParseCount(combined);
-                        if (parsed > details.LikeCount && parsed < 10000000000)
-                        {
-                            details.LikeCount = (int)Math.Min(parsed, int.MaxValue);
-                        }
+                        details.LikeCount = (int)Math.Min(parsed, int.MaxValue);
                     }
                 }
 
@@ -966,7 +1050,10 @@ namespace App1.Services
                     if (parsedCount > details.CommentCount)
                     {
                         details.CommentCount = (int)Math.Min(parsedCount, int.MaxValue);
-                        _commentCountCache[details.VideoId] = details.CommentCount;
+                        lock (_cacheLock)
+                        {
+                            _commentCountCache[details.VideoId] = details.CommentCount;
+                        }
                     }
                 }
 
@@ -1729,7 +1816,10 @@ namespace App1.Services
                         var parsed = FormatUtil.ParseCount(countText);
                         if (parsed > 0)
                         {
-                            _commentCountCache[videoId] = (int)Math.Min(parsed, int.MaxValue);
+                            lock (_cacheLock)
+                            {
+                                _commentCountCache[videoId] = (int)Math.Min(parsed, int.MaxValue);
+                            }
                         }
                     }
 
@@ -1739,7 +1829,10 @@ namespace App1.Services
                         var parsed = FormatUtil.ParseCount(commentsCount);
                         if (parsed > 0)
                         {
-                            _commentCountCache[videoId] = (int)Math.Min(parsed, int.MaxValue);
+                            lock (_cacheLock)
+                            {
+                                _commentCountCache[videoId] = (int)Math.Min(parsed, int.MaxValue);
+                            }
                         }
                     }
                 }
@@ -1882,9 +1975,74 @@ namespace App1.Services
             comments.Add(item);
         }
 
+        private static long ParseLikeCount(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return 0;
+            }
+
+            // Only trust a number that is immediately followed by a like label
+            // ("1,234 likes", "1.2M likes", "1,2 Mio. Likes"). Scanning every node
+            // of the response with ParseCount used to let unrelated text (a
+            // related video titled "5 Books I Like") feed the like counter.
+            for (int i = 0; i < text.Length; i++)
+            {
+                if (text[i] < '0' || text[i] > '9')
+                {
+                    continue;
+                }
+
+                var end = i;
+                while (end < text.Length
+                    && ((text[end] >= '0' && text[end] <= '9') || text[end] == '.' || text[end] == ',' || text[end] == ' '))
+                {
+                    end++;
+                }
+
+                var rest = text.Substring(end).TrimStart();
+                if (rest.StartsWith("like", StringComparison.OrdinalIgnoreCase))
+                {
+                    return FormatUtil.ParseCount(text.Substring(i));
+                }
+
+                // An optional unit marker may sit between the number and the
+                // label ("1.2M likes" / "1,2 Mio. Likes"), but nothing longer:
+                // "5 Books I Like ..." must not qualify.
+                var markerEnd = end;
+                while (markerEnd < text.Length
+                    && (text[markerEnd] == ' ' || text[markerEnd] == '.' || text[markerEnd] == '\u00A0'))
+                {
+                    markerEnd++;
+                }
+
+                var wordStart = markerEnd;
+                while (markerEnd < text.Length && char.IsLetter(text[markerEnd]))
+                {
+                    markerEnd++;
+                }
+
+                if (markerEnd - wordStart > 4)
+                {
+                    continue;
+                }
+
+                rest = text.Substring(markerEnd).TrimStart(' ', '.', '\u00A0');
+                if (rest.StartsWith("like", StringComparison.OrdinalIgnoreCase))
+                {
+                    return FormatUtil.ParseCount(text.Substring(i));
+                }
+            }
+
+            return 0;
+        }
+
         private void CacheRelated(string videoId, JsonObject next)
         {
-            _relatedCache[videoId] = ParseVideos(next.Stringify(), false);
+            lock (_cacheLock)
+            {
+                _relatedCache[videoId] = ParseVideos(next.Stringify(), false);
+            }
         }
 
         private void CacheCommentsSeed(string videoId, JsonObject next)
@@ -1896,13 +2054,25 @@ namespace App1.Services
             CollectEngagementCommentContinuations(next, continuations);
             if (continuations.Count > 0)
             {
-                _commentContinuationCache[videoId] = new List<string>(continuations);
+                lock (_cacheLock)
+                {
+                    _commentContinuationCache[videoId] = new List<string>(continuations);
+                }
             }
 
             if (comments.Count > 0)
             {
-                _commentsCache[videoId] = new List<CommentItem>(comments);
-                _commentCountCache[videoId] = comments.Count;
+                // Only remember the comment count hint from the teaser. Caching the
+                // seeded comments themselves would make GetCommentsAsync return the
+                // 1-2 teaser entries instead of loading the real thread.
+                int cachedCount;
+                lock (_cacheLock)
+                {
+                    if (!_commentCountCache.TryGetValue(videoId, out cachedCount) || comments.Count > cachedCount)
+                    {
+                        _commentCountCache[videoId] = comments.Count;
+                    }
+                }
             }
         }
 
@@ -1998,15 +2168,17 @@ namespace App1.Services
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
             try
             {
-                var response = await _http.SendRequestAsync(request).AsTask(cts.Token);
-                var text = await response.Content.ReadAsStringAsync();
-                if (!response.IsSuccessStatusCode)
+                using (var response = await _http.SendRequestAsync(request).AsTask(cts.Token))
                 {
-                    throw new Exception("InnerTube HTTP " + ((int)response.StatusCode) + " for " + endpoint);
-                }
+                    var text = await response.Content.ReadAsStringAsync();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        throw new Exception("InnerTube HTTP " + ((int)response.StatusCode) + " for " + endpoint);
+                    }
 
-                RememberVisitor(await BackgroundWork.Run(() => JsonUtil.ParseObject(text)));
-                return text;
+                    RememberVisitor(await BackgroundWork.Run(() => JsonUtil.ParseObject(text)));
+                    return text;
+                }
             }
             finally
             {

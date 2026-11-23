@@ -83,6 +83,14 @@ namespace App1
                 Window.Current.Content = rootFrame;
             }
 
+            if (rootFrame.Content == null)
+            {
+                // Cold start through activation (the app was terminated while a
+                // web sign-in was open): there is no page yet, so bring up the
+                // main one instead of activating an empty window.
+                rootFrame.Navigate(typeof(MainPage), null);
+            }
+
             Window.Current.Activate();
             base.OnActivated(args);
         }

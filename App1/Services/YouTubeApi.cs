@@ -14,6 +14,7 @@ namespace App1.Services
         private DateTime _shortsCacheTime;
         private DateTime _postsCacheTime;
         private readonly Dictionary<string, Task<VideoDetails>> _playbackPrefetch = new Dictionary<string, Task<VideoDetails>>();
+        private readonly List<string> _playbackPrefetchOrder = new List<string>();
         private const int PlaybackPrefetchMax = 6;
 
         public YouTubeApi()
@@ -47,6 +48,8 @@ namespace App1.Services
             set
             {
                 ApplicationData.Current.LocalSettings.Values["Backend"] = value ? "InnerTube" : "Invidious";
+                _playbackPrefetch.Clear();
+                _playbackPrefetchOrder.Clear();
                 Generation++;
             }
         }
@@ -76,12 +79,16 @@ namespace App1.Services
         public void SetCustomInstance(string url)
         {
             Invidious.SetCustomInstance(url);
+            _playbackPrefetch.Clear();
+            _playbackPrefetchOrder.Clear();
             Generation++;
         }
 
         public void UseAutomaticInstance()
         {
             Invidious.UseAutomaticInstance();
+            _playbackPrefetch.Clear();
+            _playbackPrefetchOrder.Clear();
             Generation++;
         }
 
@@ -153,13 +160,9 @@ namespace App1.Services
                 return new List<CommunityPostItem>();
             }
 
+            // Deliberately not stored in _postsCache: that cache backs the general
+            // community feed, and channel-specific results would replace it.
             var list = await InnerTube.GetCommunityPostsForChannelsAsync(channelIds, maxPosts);
-            if (list != null && list.Count > 0)
-            {
-                _postsCache = list;
-                _postsCacheTime = DateTime.Now;
-            }
-
             return list ?? new List<CommunityPostItem>();
         }
 
@@ -187,6 +190,8 @@ namespace App1.Services
         {
             _shortsCache = null;
             _postsCache = null;
+            _playbackPrefetch.Clear();
+            _playbackPrefetchOrder.Clear();
         }
 
         public Task<List<FeedItem>> LoadHomeFeedPageAsync()
@@ -243,6 +248,7 @@ namespace App1.Services
             if (_playbackPrefetch.TryGetValue(videoId, out prefetch))
             {
                 _playbackPrefetch.Remove(videoId);
+                _playbackPrefetchOrder.Remove(videoId);
                 return prefetch;
             }
 
@@ -264,28 +270,17 @@ namespace App1.Services
             _playbackPrefetch[videoId] = UseInnerTube
                 ? InnerTube.GetVideoPlaybackAsync(videoId)
                 : Invidious.GetVideoAsync(videoId);
+            _playbackPrefetchOrder.Add(videoId);
             TrimPlaybackPrefetch();
         }
 
         private void TrimPlaybackPrefetch()
         {
-            while (_playbackPrefetch.Count > PlaybackPrefetchMax)
+            while (_playbackPrefetch.Count > PlaybackPrefetchMax && _playbackPrefetchOrder.Count > 0)
             {
-                string oldestKey = null;
-                foreach (var key in _playbackPrefetch.Keys)
-                {
-                    oldestKey = key;
-                    break;
-                }
-
-                if (oldestKey != null)
-                {
-                    _playbackPrefetch.Remove(oldestKey);
-                }
-                else
-                {
-                    break;
-                }
+                var oldestKey = _playbackPrefetchOrder[0];
+                _playbackPrefetchOrder.RemoveAt(0);
+                _playbackPrefetch.Remove(oldestKey);
             }
         }
 

@@ -21,6 +21,7 @@ namespace App1
     {
         private bool _updatingNav;
         private bool _searchOpen;
+        private int _searchGeneration;
         private bool _loaded;
         private int _backendGeneration = -1;
         private int _shortIndex;
@@ -36,6 +37,7 @@ namespace App1
         private string _loadingShortId;
         private VideoDetails _shortDetails;
         private readonly Dictionary<string, ShortPreloadEntry> _shortPreload = new Dictionary<string, ShortPreloadEntry>();
+        private readonly object _preloadLock = new object();
         private bool _homeLoadingMore;
         private bool _homeHasMore = true;
         private int _homeLoadGeneration;
@@ -81,9 +83,11 @@ namespace App1
         {
             HidePivotHeaders(MainPivot);
             ClipPivotHost();
+            PivotHost.SizeChanged -= PivotHost_SizeChanged;
             PivotHost.SizeChanged += PivotHost_SizeChanged;
             if (Frame != null)
             {
+                Frame.Navigated -= Frame_Navigated;
                 Frame.Navigated += Frame_Navigated;
             }
 
@@ -239,17 +243,13 @@ namespace App1
                 return;
             }
 
+            _homeLoadingMore = true;
             var generation = _homeLoadGeneration;
             Task.Run(async () => await HomeLoadPipelineAsync(reset, generation));
         }
 
         private async Task HomeLoadPipelineAsync(bool reset, int generation)
         {
-            if (_homeLoadingMore && !reset)
-            {
-                return;
-            }
-
             _homeLoadingMore = true;
 
             if (reset)
@@ -576,7 +576,14 @@ namespace App1
 
             video.IsShort = true;
             video.CardHeight = height;
+            var hadShorts = ShortsVideos.Count > 0;
             ShortsVideos.Insert(0, video);
+            if (hadShorts)
+            {
+                // Keep _shortIndex on the short the user is currently watching.
+                _shortIndex++;
+            }
+
             ShortsEmpty.Visibility = Visibility.Collapsed;
         }
 
@@ -775,6 +782,8 @@ namespace App1
                 return;
             }
 
+            _searchGeneration++;
+            var gen = _searchGeneration;
             _searchOpen = true;
             SearchOverlay.Visibility = Visibility.Visible;
             SearchLoading.IsActive = true;
@@ -783,6 +792,11 @@ namespace App1
             try
             {
                 var results = await App.Api.SearchVideosAsync(query.Trim(), false);
+                if (gen != _searchGeneration)
+                {
+                    return;
+                }
+
                 var height = Math.Max(420, Window.Current.Bounds.Height - 104);
                 foreach (var video in results)
                 {
@@ -800,12 +814,19 @@ namespace App1
             }
             catch (Exception ex)
             {
-                SearchEmpty.Text = "Search failed. " + ex.Message;
-                SearchEmpty.Visibility = Visibility.Visible;
+                if (gen == _searchGeneration)
+                {
+                    SearchEmpty.Text = "Search failed. " + ex.Message;
+                    SearchEmpty.Visibility = Visibility.Visible;
+                }
             }
             finally
             {
-                SearchLoading.IsActive = false;
+                // An older, slower search must not hide the newer one's spinner.
+                if (gen == _searchGeneration)
+                {
+                    SearchLoading.IsActive = false;
+                }
             }
         }
 
@@ -1079,18 +1100,21 @@ namespace App1
 
         private VideoDetails GetShortPreload(string videoId)
         {
-            if (string.IsNullOrEmpty(videoId) || !_shortPreload.ContainsKey(videoId))
+            lock (_preloadLock)
             {
-                return null;
-            }
+                if (string.IsNullOrEmpty(videoId) || !_shortPreload.ContainsKey(videoId))
+                {
+                    return null;
+                }
 
-            var entry = _shortPreload[videoId];
-            if (entry == null || entry.IsLoading || entry.Details == null)
-            {
-                return null;
-            }
+                var entry = _shortPreload[videoId];
+                if (entry == null || entry.IsLoading || entry.Details == null)
+                {
+                    return null;
+                }
 
-            return entry.Details;
+                return entry.Details;
+            }
         }
 
         private void StoreShortPreload(string videoId, VideoDetails details)
@@ -1100,11 +1124,22 @@ namespace App1
                 return;
             }
 
-            _shortPreload[videoId] = new ShortPreloadEntry { Details = details, IsLoading = false };
-            TrimShortPreload();
+            lock (_preloadLock)
+            {
+                _shortPreload[videoId] = new ShortPreloadEntry { Details = details, IsLoading = false };
+                TrimShortPreload();
+            }
         }
 
         private void TrimShortPreload()
+        {
+            lock (_preloadLock)
+            {
+                TrimShortPreloadLocked();
+            }
+        }
+
+        private void TrimShortPreloadLocked()
         {
             while (_shortPreload.Count > ShortPreloadMaxEntries)
             {
@@ -1128,7 +1163,10 @@ namespace App1
 
         private void ClearShortPreload()
         {
-            _shortPreload.Clear();
+            lock (_preloadLock)
+            {
+                _shortPreload.Clear();
+            }
         }
 
         private void ScheduleShortsPreloadAfterPlay(int currentIndex)
@@ -1153,12 +1191,16 @@ namespace App1
 
         private void PreloadShortAsync(string videoId)
         {
-            if (string.IsNullOrEmpty(videoId) || _shortPreload.ContainsKey(videoId))
+            lock (_preloadLock)
             {
-                return;
+                if (string.IsNullOrEmpty(videoId) || _shortPreload.ContainsKey(videoId))
+                {
+                    return;
+                }
+
+                _shortPreload[videoId] = new ShortPreloadEntry { IsLoading = true };
             }
 
-            _shortPreload[videoId] = new ShortPreloadEntry { IsLoading = true };
             Task.Run(async () => await PreloadShortWorker(videoId));
         }
 
@@ -1167,19 +1209,25 @@ namespace App1
             try
             {
                 var details = await App.Api.GetVideoPlaybackAsync(videoId);
-                if (details != null)
+                lock (_preloadLock)
                 {
-                    _shortPreload[videoId] = new ShortPreloadEntry { Details = details, IsLoading = false };
-                    TrimShortPreload();
-                }
-                else
-                {
-                    _shortPreload.Remove(videoId);
+                    if (details != null)
+                    {
+                        _shortPreload[videoId] = new ShortPreloadEntry { Details = details, IsLoading = false };
+                        TrimShortPreloadLocked();
+                    }
+                    else
+                    {
+                        _shortPreload.Remove(videoId);
+                    }
                 }
             }
             catch
             {
-                _shortPreload.Remove(videoId);
+                lock (_preloadLock)
+                {
+                    _shortPreload.Remove(videoId);
+                }
             }
         }
 
